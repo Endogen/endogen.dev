@@ -1,8 +1,8 @@
 [
   "web2api",
-  "Telegram-Kraken-Bot",
-  "OpenCryptoBot",
   "olmo-bot",
   "antique-catalogue",
-  "ralph-dashboard"
+  "ralph-dashboard",
+  "sap-dmc-api",
+  "telegram-saved-organizer"
 ]
