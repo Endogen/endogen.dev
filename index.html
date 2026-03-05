@@ -278,33 +278,27 @@
   }
 
   .contrib-grid {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(53, 1fr);
     gap: 3px;
-    overflow-x: auto;
     padding-bottom: 8px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
   }
 
-  .contrib-grid::-webkit-scrollbar { height: 4px; }
-  .contrib-grid::-webkit-scrollbar-track { background: transparent; }
-  .contrib-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
   .contrib-week {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: repeat(7, 1fr);
     gap: 3px;
   }
 
   .contrib-day {
-    width: 11px;
-    height: 11px;
+    aspect-ratio: 1;
     border-radius: 2px;
     background: var(--bg3);
     transition: transform 0.15s;
+    min-width: 0;
   }
   .contrib-day:hover {
-    transform: scale(1.5);
+    transform: scale(1.4);
     z-index: 1;
   }
   .contrib-day[data-level="1"] { background: #0e4429; }
@@ -449,7 +443,7 @@
     <div class="contributions-wrapper">
       <div class="contrib-summary">
         <span class="contrib-count" id="contrib-total">—</span>
-        <span class="contrib-label">contributions in the last year</span>
+        <span class="contrib-label">contributions in the last 53 weeks</span>
       </div>
       <div class="contrib-grid" id="contrib-grid"></div>
       <div class="contrib-legend">
@@ -552,48 +546,72 @@
       `;
       grid.appendChild(a);
     }
-    // Contribution graph
+    // Contribution graph — always 53 full weeks ending on today's weekday
     try {
-      const contribRes = await fetch('https://github-contributions-api.jogruber.de/v4/Endogen?y=last');
-      const contribData = await contribRes.json();
-      const total = contribData.total?.lastYear || 0;
-      const days = contribData.contributions || [];
+      const API = 'https://github-contributions-api.jogruber.de/v4/Endogen';
+      const now = new Date();
+      const currentYear = now.getFullYear();
 
-      document.getElementById('contrib-total').textContent = total.toLocaleString();
+      // Fetch current + previous year to have enough data
+      const [curRes, prevRes] = await Promise.all([
+        fetch(`${API}?y=${currentYear}`),
+        fetch(`${API}?y=${currentYear - 1}`),
+      ]);
+      const curData = await curRes.json();
+      const prevData = await prevRes.json();
+
+      // Merge into a date map
+      const dayMap = {};
+      for (const d of (prevData.contributions || [])) dayMap[d.date] = d;
+      for (const d of (curData.contributions || [])) dayMap[d.date] = d;
+
+      // Build exactly 53 weeks ending on today
+      const totalWeeks = 53;
+      const totalDays = totalWeeks * 7;
+      const todayDow = now.getDay(); // 0=Sun
+      // End of grid = end of today's week (Saturday)
+      const endDate = new Date(now);
+      endDate.setDate(endDate.getDate() + (6 - todayDow));
+      // Start = 53 weeks before that Sunday
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - totalDays + 1);
+
+      const days = [];
+      let totalContribs = 0;
+      const d = new Date(startDate);
+      for (let i = 0; i < totalDays; i++) {
+        const key = d.toISOString().slice(0, 10);
+        const entry = dayMap[key] || { date: key, count: 0, level: 0 };
+        // Don't show future days
+        if (d > now) {
+          entry.count = -1; // marker for future
+          entry.level = -1;
+        } else {
+          totalContribs += entry.count;
+        }
+        days.push(entry);
+        d.setDate(d.getDate() + 1);
+      }
+
+      document.getElementById('contrib-total').textContent = totalContribs.toLocaleString();
 
       const grid = document.getElementById('contrib-grid');
       grid.innerHTML = '';
 
-      // Group into weeks (Sun=0 start)
-      const weeks = [];
-      let currentWeek = [];
-
-      // Pad first week with empty cells
-      if (days.length > 0) {
-        const firstDay = new Date(days[0].date).getDay();
-        for (let i = 0; i < firstDay; i++) {
-          currentWeek.push(null);
-        }
-      }
-
-      for (const day of days) {
-        currentWeek.push(day);
-        if (currentWeek.length === 7) {
-          weeks.push(currentWeek);
-          currentWeek = [];
-        }
-      }
-      if (currentWeek.length > 0) weeks.push(currentWeek);
-
-      for (const week of weeks) {
+      // 53 full weeks, 7 days each — no gaps
+      for (let w = 0; w < totalWeeks; w++) {
         const weekEl = document.createElement('div');
         weekEl.className = 'contrib-week';
-        for (const day of week) {
+        for (let dow = 0; dow < 7; dow++) {
+          const day = days[w * 7 + dow];
           const dayEl = document.createElement('div');
           dayEl.className = 'contrib-day';
-          if (day) {
+          if (day && day.level >= 0) {
             dayEl.setAttribute('data-level', day.level);
             dayEl.title = `${day.date}: ${day.count} contribution${day.count !== 1 ? 's' : ''}`;
+          } else {
+            // Future day — dim/invisible
+            dayEl.style.opacity = '0.15';
           }
           weekEl.appendChild(dayEl);
         }
