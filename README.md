@@ -2,7 +2,7 @@
 
 Personal landing page at [endogen.dev](https://endogen.dev) — auto-updating GitHub profile with dark theme.
 
-![Screenshot](screenshot.png)
+![Snapshot](snapshot.png)
 
 ## Features
 
