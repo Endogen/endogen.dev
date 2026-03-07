@@ -192,25 +192,39 @@
     padding: 20px;
     text-decoration: none;
     color: var(--text);
-    transition: all 0.3s;
+    transition: transform 0.3s, box-shadow 0.3s;
     position: relative;
     overflow: hidden;
   }
+  /* Spotlight border glow — follows cursor position */
   .repo::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    inset: -1px;
+    border-radius: inherit;
+    background: radial-gradient(
+      300px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(108, 99, 255, 0.5),
+      rgba(0, 212, 170, 0.15) 40%,
+      transparent 70%
+    );
     opacity: 0;
     transition: opacity 0.3s;
+    z-index: -1;
+  }
+  /* Inner background to mask the glow, creating a border-only effect */
+  .repo::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-radius: 11px;
+    background: var(--bg2);
+    z-index: -1;
   }
   .repo:hover {
-    border-color: var(--accent);
     transform: translateY(-2px);
     box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    border-color: transparent;
   }
   .repo:hover::before { opacity: 1; }
 
@@ -550,6 +564,15 @@
       `;
       grid.appendChild(a);
     }
+    // Spotlight border glow — track mouse on repo cards
+    for (const card of grid.querySelectorAll('.repo')) {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+        card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+      });
+    }
+
     // Contribution graph — always 53 full weeks ending on today's weekday
     try {
       const API = 'https://github-contributions-api.jogruber.de/v4/Endogen';
