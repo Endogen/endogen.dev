@@ -138,12 +138,38 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    transition: transform 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: radial-gradient(
+      200px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      rgba(108, 99, 255, 0.5),
+      rgba(0, 212, 170, 0.15) 40%,
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: -1;
+  }
+  .stat::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-radius: 11px;
+    background: var(--bg2);
+    z-index: -1;
   }
   .stat:hover {
-    border-color: var(--accent);
+    border-color: transparent;
     box-shadow: 0 0 20px var(--glow);
   }
+  .stat:hover::before { opacity: 1; }
 
   .stat-value {
     font-family: 'JetBrains Mono', monospace;
@@ -564,14 +590,16 @@
       `;
       grid.appendChild(a);
     }
-    // Spotlight border glow — track mouse on repo cards
-    for (const card of grid.querySelectorAll('.repo')) {
-      card.addEventListener('mousemove', (e) => {
-        const rect = card.getBoundingClientRect();
-        card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-        card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+    // Spotlight border glow — track mouse on cards
+    function addSpotlight(el) {
+      el.addEventListener('mousemove', (e) => {
+        const rect = el.getBoundingClientRect();
+        el.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+        el.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
       });
     }
+    for (const card of grid.querySelectorAll('.repo')) addSpotlight(card);
+    for (const stat of document.querySelectorAll('.stat')) addSpotlight(stat);
 
     // Contribution graph — always 53 full weeks ending on today's weekday
     try {
